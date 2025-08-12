@@ -3,13 +3,9 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
 import router from '@/router'
 
-const runtime = (typeof window !== 'undefined' && window.__ATTENDAI__) || {}
-const API_BASE_URL =
-  runtime.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5166'
-
 // 创建 Axios 实例
 const service = axios.create({
-  baseURL: API_BASE_URL || '/api', // 支持环境变量配置
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api', // 支持环境变量配置
   timeout: 60000,
   withCredentials: true,
 })

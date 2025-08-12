@@ -13,6 +13,9 @@ RUN npm run build
 # ========== 2. Runtime Stage ==========
 FROM nginx:1.27-alpine
 
+# 需要这个！提供 envsubst
+RUN apk add --no-cache gettext
+
 # 拷贝构建产物
 COPY --from=build /app/dist /usr/share/nginx/html
 
