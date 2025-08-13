@@ -34,13 +34,13 @@
 <script>
 import { ref } from 'vue'
 import { callAI } from '@/api/ai-api'
-import { useAuthStore } from '@/stores/authStore'
+
 export default {
   setup() {
     const input = ref('')
     const messages = ref([{ role: 'system', content: '欢迎使用任务AI助手，请输入任务需求。' }])
     const taskResult = ref(null)
-    const authStore = useAuthStore()
+
     const sendMessage = async () => {
       if (!input.value.trim()) return
 
