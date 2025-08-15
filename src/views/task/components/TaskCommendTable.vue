@@ -12,7 +12,9 @@
         />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="submitComment">发表反馈</el-button>
+        <el-button type="primary" :loading="sending" :disabled="sending" @click="submitComment">
+          {{ sending ? '正在反馈…' : '发送反馈' }}</el-button
+        >
       </el-form-item>
     </el-form>
 
@@ -55,6 +57,7 @@
 import { ref, watch } from 'vue'
 import { post } from '@/http/request'
 import { ElMessage } from 'element-plus'
+import { callAI } from '@/api/ai-api'
 
 const props = defineProps({
   taskId: {
@@ -67,6 +70,7 @@ const comments = ref([])
 const commentText = ref('')
 const total = ref(0)
 const loading = ref(false)
+const sending = ref(false)
 
 const pageRequest = ref({
   page_index: 1,
@@ -98,16 +102,25 @@ const submitComment = async () => {
     ElMessage.warning('请输入评论内容')
     return
   }
-
-  await post('/taskcomment/add', {
-    task_id: props.taskId,
-    comment_content: commentText.value,
+  if (sending.value) return // 防重复点击
+  sending.value = true
+  const stictched = `[task_id=${props.taskId}]` + commentText.value
+  const res = await callAI('/task/ai-comment', {
+    user_input: stictched,
+    //session_id: authStore.token,
   })
 
-  ElMessage.success('评论成功')
-  commentText.value = ''
-  pageRequest.value.page_index = 1
-  await fetchComments()
+  if (res.status == 'comment_complete') {
+    ElMessage.success('评论成功')
+    sending.value = false
+    commentText.value = ''
+    pageRequest.value.page_index = 1
+    await fetchComments()
+  }
+  // await post('/taskcomment/add', {
+  //   task_id: props.taskId,
+  //   comment_content: commentText.value,
+  // })
 }
 
 const onPageChange = (page) => {

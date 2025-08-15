@@ -28,16 +28,21 @@
       <el-descriptions-item label="完成时间">
         {{ formatDate(task.completed_date) }}
       </el-descriptions-item>
-
+      <el-descriptions-item label="创建人">
+        {{ task.created_name }}
+      </el-descriptions-item>
       <el-descriptions-item label="备注">{{ task.task_remark || '-' }}</el-descriptions-item>
     </el-descriptions>
 
     <div class="mt-4 flex-row">
       <el-button type="primary" @click="goBack">返回</el-button>
-      <el-button type="success" @click="completeTask" :disabled="task.status_text === '已完成'"
+      <el-button
+        type="success"
+        v-if="can_complete"
+        @click="completeTask"
+        :disabled="task.status_text === '已完成'"
         >完成任务</el-button
       >
-
       <el-upload
         class="ml-2"
         :http-request="handleUpload"
@@ -123,6 +128,8 @@ import dayjs from 'dayjs'
 import TaskComment from './components/TaskCommendTable.vue'
 
 import { TaskTypeEnum } from '@/constants/taskEnums'
+import { useAuthStore } from '@/stores/authStore'
+const auth = useAuthStore()
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const loading = ref(false)
@@ -136,6 +143,11 @@ const uploadProgress = ref(0)
 const summaryDialogVisible = ref(false)
 const summaryContent = ref('')
 const extractingFileId = ref(null)
+const current_user_id = computed(() => auth.user?.user_id)
+
+const can_complete = computed(
+  () => task.value && current_user_id.value && task.value.created_by === current_user_id.value
+)
 
 const getFileType = (fileName) => {
   const parts = fileName.split('.')
