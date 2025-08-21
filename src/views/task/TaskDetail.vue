@@ -9,7 +9,9 @@
     <el-descriptions :column="2" border :loading="loading">
       <el-descriptions-item label="任务名称">
         {{ task.task_name }}
-        <el-tag v-if="task.is_ai_gen" size="small" type="success" class="ml-1">AI</el-tag>
+        <el-tag v-if="task.is_ai_gen" size="middle" @click="viewChat" type="success" class="ml-1"
+          >AI</el-tag
+        >
       </el-descriptions-item>
       <el-descriptions-item label="任务类型">{{ task.task_type_name || '-' }}</el-descriptions-item>
       <el-descriptions-item label="标签">
@@ -108,6 +110,15 @@
     <TaskComment v-if="task.task_id" :task-id="task.task_id" />
   </el-card>
 
+  <el-dialog v-model="descDialogVisible" title="AI摘要" width="600px">
+    <div style="white-space: pre-wrap; font-size: 14px; color: #333">
+      {{ taskDescContent }}
+    </div>
+    <template #footer>
+      <el-button @click="descDialogVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
+
   <el-dialog v-model="summaryDialogVisible" title="文件摘要" width="600px">
     <div style="white-space: pre-wrap; font-size: 14px; color: #333">
       {{ summaryContent }}
@@ -142,6 +153,10 @@ const uploadProgress = ref(0)
 
 const summaryDialogVisible = ref(false)
 const summaryContent = ref('')
+
+const taskDescContent = ref('')
+const descDialogVisible = ref(false)
+
 const extractingFileId = ref(null)
 const current_user_id = computed(() => auth.user?.user_id)
 
@@ -152,6 +167,14 @@ const can_complete = computed(
 const getFileType = (fileName) => {
   const parts = fileName.split('.')
   return parts.length > 1 ? parts.pop().toLowerCase() : ''
+}
+
+const viewChat = async () => {
+  if (task.value.task_desc) {
+    taskDescContent.value = task.value.task_desc
+    descDialogVisible.value = true
+    return
+  }
 }
 
 const viewSummary = async (row) => {
@@ -208,7 +231,7 @@ const completeTask = async () => {
   try {
     await post(`/task/${task.value.task_id}/complete`)
     ElMessage.success('任务已完成')
-    task.value.status_text = '已完成'
+    fetchTask()
   } catch (e) {
     ElMessage.error(e?.message || '任务完成失败')
   }

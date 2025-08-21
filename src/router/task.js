@@ -12,6 +12,12 @@ export default [
     meta: { requiresAuth: true },
   },
   {
+    path: '/task/commentchat',
+    name: 'comment-chat',
+    component: () => import('@/views/task/CommentChat.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/task/detail',
     name: 'task-detail',
     component: () => import('@/views/task/TaskDetail.vue'),

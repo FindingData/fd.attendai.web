@@ -14,18 +14,6 @@
           </el-card>
         </el-col>
         <el-col :span="8">
-          <el-card shadow="hover" @click="$router.push('/attendance')" class="quick-card">
-            <h3>📋 考勤记录</h3>
-            <p>查看签到、外勤记录</p>
-          </el-card>
-        </el-col>
-        <el-col :span="8">
-          <el-card shadow="hover" @click="$router.push('/profile')" class="quick-card">
-            <h3>👤 我的信息</h3>
-            <p>查看并管理个人资料</p>
-          </el-card>
-        </el-col>
-        <el-col :span="8">
           <el-card shadow="hover" @click="$router.push('/worklog')" class="quick-card">
             <h3>📝 工作日志</h3>
             <p>记录并查看每日工作</p>

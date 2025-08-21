@@ -39,6 +39,7 @@
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
             <el-button type="default" size="small" @click="viewDetail(row)">查看</el-button>
+            <el-button type="default" size="small" @click="reply(row)">反馈</el-button>
             <el-divider direction="vertical" />
             <el-popconfirm title="确认删除该任务？" @confirm="deleteTask(row.task_id)">
               <template #reference>
@@ -127,6 +128,10 @@ const formatDate = (dateStr) => {
 
 const viewDetail = (task) => {
   router.push({ path: '/task/detail', query: { task_id: task.task_id } })
+}
+
+const reply = (task) => {
+  router.push({ path: '/task/CommentChat', query: { task_id: task.task_id } })
 }
 
 const onPageChange = (page) => {

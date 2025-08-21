@@ -30,7 +30,7 @@
         <template #default="{ row }">
           <el-popconfirm title="确认删除这条反馈？" @confirm="deleteComment(row.id)">
             <template #reference>
-              <el-button type="default" size="small">删除</el-button>
+              <el-button type="default" v-if="can_del(row.created_by)" size="small">删除</el-button>
             </template>
           </el-popconfirm>
         </template>
@@ -54,10 +54,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { post } from '@/http/request'
 import { ElMessage } from 'element-plus'
 import { callAI } from '@/api/ai-api'
+
+import { useAuthStore } from '@/stores/authStore'
+const auth = useAuthStore()
 
 const props = defineProps({
   taskId: {
@@ -78,6 +81,11 @@ const pageRequest = ref({
   task_id: props.taskId,
   order_by: 'created_at',
 })
+const current_user_id = computed(() => auth.user?.user_id)
+
+const can_del = (created_by) => {
+  return current_user_id.value && created_by === current_user_id.value
+}
 
 const deleteComment = async (id) => {
   await post(`/taskcomment/del/${id}`)
