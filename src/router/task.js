@@ -18,6 +18,12 @@ export default [
     meta: { requiresAuth: true },
   },
   {
+    path: '/task/auditchat',
+    name: 'audit-chat',
+    component: () => import('@/views/task/AuditChat.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/task/detail',
     name: 'task-detail',
     component: () => import('@/views/task/TaskDetail.vue'),

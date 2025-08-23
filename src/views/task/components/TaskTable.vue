@@ -40,6 +40,7 @@
           <template #default="{ row }">
             <el-button type="default" size="small" @click="viewDetail(row)">查看</el-button>
             <el-button type="default" size="small" @click="reply(row)">反馈</el-button>
+            <el-button type="default" size="small" @click="audit(row)">文件</el-button>
             <el-divider direction="vertical" />
             <el-popconfirm title="确认删除该任务？" @confirm="deleteTask(row.task_id)">
               <template #reference>
@@ -132,6 +133,10 @@ const viewDetail = (task) => {
 
 const reply = (task) => {
   router.push({ path: '/task/CommentChat', query: { task_id: task.task_id } })
+}
+
+const audit = (task) => {
+  router.push({ path: '/task/AuditChat', query: { task_id: task.task_id } })
 }
 
 const onPageChange = (page) => {
