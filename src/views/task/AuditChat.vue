@@ -90,8 +90,8 @@ function scrollToBottom() {
 const handleUploadSuccess = async () => {}
 
 const beforeUpload = (file) => {
-  if (file.size > 20 * 1024 * 1024) {
-    ElMessage.warning('附件不能大于20MB')
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('附件不能大于10MB')
     return false
   }
   return true
