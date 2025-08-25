@@ -2,9 +2,9 @@ name: Build & Push Web to GHCR
 on:
   push:
     branches: [master]
-    paths:
-      - 'fd.attendai.web/**'
-
+    #paths:
+      #- 'fd.attendai.web/**'
+    workflow_dispatch: {}            # 手动运行按钮
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
-          context: ./fd.attendai.web
+          context: .
           push: true
           platforms: linux/amd64 # 如果需要 arm64 一起发：linux/amd64,linux/arm64
           tags: |
