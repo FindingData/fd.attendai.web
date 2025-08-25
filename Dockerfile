@@ -1,36 +1,23 @@
-# ========== 1. Build Stage ==========
+# ========== 1. Build ==========
 FROM node:20-alpine AS build
-
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm ci --no-audit --no-fund
 
+# 如果仓库里有 .env.production，直接一起拷贝（可选）
+# 也可以不显式 COPY，后面的 COPY . . 已经包含
 COPY . .
-# 你项目若用 Vite，请保证使用 VITE_ 前缀的构建变量
-# 这里不强行传，运行时用 env.js 注入
+# 保证生产构建（vite 默认就是 production）
 RUN npm run build
 
-# ========== 2. Runtime Stage ==========
+# ========== 2. Run ==========
 FROM nginx:1.27-alpine
 
-# 需要这个！提供 envsubst
-RUN apk add --no-cache gettext
-
-# 拷贝构建产物
+# 仅拷贝构建产物与 nginx 配置
 COPY --from=build /app/dist /usr/share/nginx/html
-
-# Nginx 配置
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
-# 运行时 env 注入脚本与模板
-COPY docker/entrypoint.sh /entrypoint.sh
-COPY docker/env.template.js /tmp/env.template.js
-
-# 暴露端口
 EXPOSE 80
-
-# 非 root（可选）
-# RUN adduser -D -H -u 10001 webuser && chown -R webuser /usr/share/nginx/html
-# USER webuser
-
-ENTRYPOINT ["/entrypoint.sh"]
+# 使用官方 nginx 的默认 entrypoint；只需给出 CMD
+CMD ["nginx", "-g", "daemon off;"]
