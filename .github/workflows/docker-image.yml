@@ -4,7 +4,7 @@ on:
     branches: [master]
     #paths:
       #- 'fd.attendai.web/**'
-    workflow_dispatch: {}           # 手动运行按钮
+    workflow_dispatch: {}            # 手动运行按钮
 jobs:
   docker:
     runs-on: ubuntu-latest
