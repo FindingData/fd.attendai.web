@@ -13,7 +13,7 @@
     <!-- 输入区 -->
     <div class="chat-input">
       <input v-model="input" @keydown.enter="sendMessage" placeholder="请输入任务描述..." />
-      <button @click="sendMessage">发送</button>
+      <button @click="sendMessage" :disabled="loading">发送</button>
       <button @click="showDetail">详情</button>
     </div>
   </div>
@@ -40,7 +40,8 @@ const router = useRouter()
 const taskId = route.query.task_id || null // 从路由参数获取 task_id
 
 const input = ref('')
-const messages = ref([{ role: 'system', content: '欢迎使用任务AI助手，请输入你要反馈的内容。' }])
+const loading = ref(false)
+const messages = ref([])
 
 const sendMessage = async () => {
   if (!input.value.trim()) return
@@ -63,6 +64,9 @@ const showDetail = () => {
 
 // 单独提取一个提交方法，负责调用接口并返回结果
 const submitToAI = async (msg) => {
+  // 占位提示
+  loading.value = true
+  messages.value.push({ role: 'assistant', content: '🤖 正在分析…' })
   const res = await callAI('/task/ai-comment', {
     user_input: msg,
     session_key: String(taskId || ''),
@@ -75,6 +79,7 @@ const submitToAI = async (msg) => {
       messages.value.push({ role: 'assistant', content: res.next_prompt })
       break
   }
+  loading.value = false
 }
 
 /** 把模型输出（可能带外层引号 & \n）转为安全 HTML */
@@ -94,6 +99,11 @@ function renderMarkdown(raw) {
 
 onMounted(() => {
   if (taskId) {
+    // 先给一条占位消息，告知“正在读取任务上下文…”
+    messages.value.push({
+      role: 'assistant',
+      content: '⏳ 正在读取任务上下文并准备反馈…',
+    })
     // 进入界面时默认发送一条带 task_id 的消息
     submitToAI(taskId)
   }

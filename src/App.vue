@@ -7,4 +7,3 @@ import layout from './layout/Layout.vue'
     <RouterView />
   </layout>
 </template>
-
