@@ -5,7 +5,6 @@
         <span>任务详情</span>
       </div>
     </template>
-
     <el-descriptions :column="2" border :loading="loading">
       <el-descriptions-item label="任务名称">
         {{ task.task_name }}
@@ -14,6 +13,46 @@
         >
       </el-descriptions-item>
       <el-descriptions-item label="任务类型">{{ task.task_type_name || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="前置任务">
+        <template v-if="task.pre_tasks && task.pre_tasks.length">
+          <div class="pre-task-line" v-for="pre in task.pre_tasks" :key="pre.task_id">
+            <el-link type="primary" @click="goSubTask(pre.task_id)">
+              {{ pre.task_name }}
+            </el-link>
+            <el-tag
+              size="small"
+              :type="pre.status_text === '已完成' ? 'success' : 'info'"
+              class="ml-1"
+            >
+              {{ pre.status_text || '-' }}
+            </el-tag>
+            <span class="pre-due ml-1" v-if="pre.due_date"
+              >（截止：{{ formatDate(pre.due_date) }}）</span
+            >
+          </div>
+        </template>
+        <span v-else>-</span>
+      </el-descriptions-item>
+      <el-descriptions-item label="后续任务">
+        <template v-if="task.next_tasks && task.next_tasks.length">
+          <div class="next-task-line" v-for="n in task.next_tasks" :key="n.task_id">
+            <el-link type="primary" @click="goSubTask(n.task_id)">
+              {{ n.task_name }}
+            </el-link>
+            <el-tag
+              size="small"
+              :type="n.status_text === '已完成' ? 'success' : 'info'"
+              class="ml-1"
+            >
+              {{ n.status_text || '-' }}
+            </el-tag>
+            <span class="ml-1 pre-due" v-if="n.due_date"
+              >（截止：{{ formatDate(n.due_date) }}）</span
+            >
+          </div>
+        </template>
+        <span v-else>-</span>
+      </el-descriptions-item>
       <el-descriptions-item label="标签">
         <el-tag v-for="tag in tagList" :key="tag" class="mr-1" type="info">
           {{ tag.tag_name }}
