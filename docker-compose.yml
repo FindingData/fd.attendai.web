@@ -1,0 +1,18 @@
+name: attendai
+
+services:
+  web:
+    image: attendai/fd.attendai.web:latest # 建议上线用固定版本号
+    container_name: web
+    ports:
+      - '5267:80' # 宿主 5267 -> 容器 80
+    env_file:
+      - .env.prod # 生产（不要入库）
+    restart: always
+    # 健康检查：静态站用根路径或 /index.html
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/healthz.txt']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

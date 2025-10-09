@@ -15,9 +15,14 @@ export default defineConfig([
 
   {
     languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
       globals: {
-        ...globals.browser,
+        ...globals.node, // 开启 Node 全局（含 process、__dirname）
       },
+    },
+    rules: {
+      'no-undef': 'off', // 可选：防止误报
     },
   },
 
