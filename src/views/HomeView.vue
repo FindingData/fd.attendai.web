@@ -28,7 +28,7 @@
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
-const username = authStore.user?.username || ''
+const username = authStore.user?.user_name || ''
 </script>
 
 <style scoped>

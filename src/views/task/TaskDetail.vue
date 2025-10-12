@@ -77,6 +77,7 @@
 
     <div class="mt-4 flex-row">
       <el-button type="primary" @click="goBack">返回</el-button>
+      <el-button type="success" v-if="can_complete" @click="replyTask">反馈</el-button>
       <el-button
         type="success"
         v-if="can_complete"
@@ -264,6 +265,10 @@ const fetchTask = async () => {
 const fetchAttachments = async () => {
   const res = await get(`/task/${task.value.task_id}/attachments`)
   attachments.value = res || []
+}
+
+const replyTask = () => {
+  router.push({ path: '/task/CommentChat', query: { task_id: task.value.task_id } })
 }
 
 const completeTask = async () => {

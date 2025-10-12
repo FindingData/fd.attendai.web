@@ -1,6 +1,6 @@
 <template>
   <el-card>
-    <el-form class="mb-3" @submit.prevent>
+    <!-- <el-form class="mb-3" @submit.prevent>
       <el-form-item>
         <el-input
           v-model="commentText"
@@ -16,7 +16,7 @@
           {{ sending ? '正在反馈…' : '发送反馈' }}</el-button
         >
       </el-form-item>
-    </el-form>
+    </el-form> -->
 
     <el-table :data="comments" v-loading="loading" size="small" border>
       <el-table-column label="反馈内容" prop="comment_content" />

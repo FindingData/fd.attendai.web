@@ -14,7 +14,7 @@
   >
     <el-table-column type="selection" width="50" />
     <el-table-column label="标题" prop="notify_title" min-width="200" />
-    <el-table-column label="时间" prop="create_time" width="180" />
+    <el-table-column label="时间" prop="created_at" width="180" />
     <el-table-column label="状态" width="100">
       <template #default="{ row }">
         <el-tag :type="row.is_read ? 'info' : 'danger'">
