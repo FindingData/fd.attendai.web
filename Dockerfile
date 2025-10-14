@@ -16,7 +16,7 @@ FROM nginx:1.27-alpine
 
 # 仅拷贝构建产物与 nginx 配置
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/default.conf.template /etc/nginx/conf.d/default.conf.template
 
 EXPOSE 80
 # 使用官方 nginx 的默认 entrypoint；只需给出 CMD

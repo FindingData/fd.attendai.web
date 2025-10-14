@@ -105,7 +105,7 @@ onMounted(() => {
       content: '⏳ 正在读取任务上下文并准备反馈…',
     })
     // 进入界面时默认发送一条带 task_id 的消息
-    submitToAI(taskId)
+    submitToAI('执行任务')
   }
 })
 </script>
