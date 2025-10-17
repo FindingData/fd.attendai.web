@@ -14,6 +14,10 @@ export default defineConfig([
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
 
   {
+    env: {
+      browser: true, // 关键：声明有 window/localStorage 等
+      es2022: true,
+    },
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

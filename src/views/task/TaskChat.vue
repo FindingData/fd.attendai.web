@@ -12,18 +12,24 @@
     <!-- 输入区 -->
     <div class="chat-input-dock">
       <div class="chat-input-bar">
+        <!-- 异步等待提示 -->
+        <div class="loading-banner" v-if="loading" aria-live="polite">
+          <span class="spinner"></span>
+          <span class="txt">AI 正在处理，请稍候…</span>
+        </div>
         <textarea
           ref="taRef"
           v-model="input"
           class="chat-textarea"
           placeholder="请输入任务描述…（Enter 发送，Shift+Enter 换行）"
           rows="1"
+          :disabled="loading"
           @input="autoResize"
-          @keydown.enter.exact.prevent="sendMessage"
+          @keydown.enter.exact.prevent="() => sendMessage(input)"
           @keydown.enter.shift.stop
         />
         <div class="btns">
-          <button class="send-btn" @click="sendMessage" :disabled="!input.trim()">发送</button>
+          <button class="send-btn" @click="sendMessage(input)" :disabled="!canSend">发送</button>
           <button class="ghost-btn" @click="clearContext">清空上下文</button>
         </div>
       </div>
@@ -32,7 +38,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
 import { callAI } from '@/api/ai-api'
 
 import MarkdownIt from 'markdown-it'
@@ -44,10 +50,11 @@ const md = new MarkdownIt({
   linkify: true,
   typographer: true,
 })
-
+const loading = ref(false)
 const input = ref('')
 const messages = ref([{ role: 'system', content: '欢迎使用任务AI助手，请输入任务需求。' }])
-
+const isFirstLoad = ref(true)
+const canSend = computed(() => !loading.value && !!input.value.trim())
 const taRef = ref('')
 const autoResize = () => {
   const el = taRef.value
@@ -57,43 +64,53 @@ const autoResize = () => {
 }
 
 const clearContext = async () => {
-  input.value = 'clear'
-  await sendMessage()
+  // 命令式：通过发送管道走 /clear，但不把命令显示到消息区
+  await sendMessage('/clear', /*isCommand*/ true, /*suppressAssistant*/ isFirstLoad.value)
   nextTick(autoResize)
 }
+// 统一发送：可传 text & 是否命令
+const sendMessage = async (text, isCommand = false, suppressAssistant = false) => {
+  const content = (text ?? input.value).trim()
+  if (!content || loading.value) return
 
-const sendMessage = async () => {
-  if (!input.value.trim()) return
-
-  // 添加用户消息
-  messages.value.push({ role: 'user', content: input.value })
+  loading.value = true
   try {
+    // 命令不入消息区；普通消息才 push 用户消息
+    if (!isCommand) {
+      messages.value.push({ role: 'user', content })
+    }
+    if (isFirstLoad.value) isFirstLoad.value = false
+
     const res = await callAI('/task/ai-chat', {
-      user_input: input.value,
-      //session_id: authStore.token,
+      user_input: content,
+      // session_id: authStore.token,
     })
-    switch (res.status) {
-      case 'query_complete':
-        messages.value.push({ role: 'assistant', content: JSON.stringify(res.data) })
-        break
-      case 'create_complete':
-        messages.value.push({ role: 'assistant', content: JSON.stringify(res.data) })
-        break
-      case 'update_complete':
-        messages.value.push({ role: 'assistant', content: JSON.stringify(res.data) })
-        break
-      default:
-        messages.value.push({ role: 'assistant', content: res.next_prompt })
-        break
+
+    // 后端返回分支
+    if (!suppressAssistant) {
+      switch (res.status) {
+        case 'query_complete':
+        case 'create_complete':
+        case 'update_complete':
+          messages.value.push({ role: 'assistant', content: JSON.stringify(res.data) })
+          break
+        default:
+          messages.value.push({ role: 'assistant', content: res.next_prompt })
+          break
+      }
     }
   } catch {
     messages.value.push({ role: 'assistant', content: '任务解析失败，请重试。' })
+  } finally {
+    // 只有在不是命令时，才清空输入框
+    if (!isCommand) input.value = ''
+    await nextTick()
+    autoResize()
+    loading.value = false
   }
-  input.value = ''
-  nextTick(autoResize)
 }
 
-nextTick(autoResize)
+clearContext()
 
 /** 把模型输出（可能带外层引号 & \n）转为安全 HTML */
 function renderMarkdown(raw) {
@@ -142,10 +159,55 @@ function renderMarkdown(raw) {
 /* 让最外层占满宽度，内层限制最大宽度，兼顾大屏/小屏 */
 .chat-input-dock {
   width: 100%;
+  position: relative; /* ← 新增 */
   background: #fff;
   border-top: 1px solid #eef1f5;
   padding: 12px 16px;
   box-sizing: border-box;
+}
+
+/* 提示条改为悬浮，不占据布局空间 */
+.loading-banner {
+  position: absolute; /* ← 改为绝对定位 */
+  left: 50%;
+  transform: translateX(-50%);
+  top: -10px; /* 贴着输入区上沿，可按需微调 -14 ~ 0 */
+  z-index: 2;
+  pointer-events: none; /* 避免挡住输入与按钮 */
+
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f0f7ff;
+  border: 1px solid #e1efff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+/* 可选：窄屏时稍微靠近输入条 */
+@media (max-width: 640px) {
+  .loading-banner {
+    top: -6px;
+    padding: 6px 10px;
+  }
+}
+
+/* 其余已存在样式保持不变（示例） */
+.spinner,
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(64, 158, 255, 0.25);
+  border-top-color: #409eff;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .chat-input-bar {
@@ -239,11 +301,52 @@ function renderMarkdown(raw) {
   transform: translateY(1px);
 }
 
+/* 等待提示：动态省略号 */
+.loading-hint {
+  max-width: 960px;
+  margin: 8px auto 0;
+  font-size: 13px;
+  opacity: 0.85;
+  user-select: none;
+}
+.dots {
+  display: inline-block;
+  width: 1.4em;
+  text-align: left;
+}
+.dots i {
+  opacity: 0;
+  animation: blink 1.4s infinite;
+  font-style: normal;
+}
+.dots i:nth-child(1) {
+  animation-delay: 0s;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%,
+  20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .chat-input-dock {
     padding: 10px 12px;
   }
-  .input-row {
+  .chat-input-bar {
     gap: 8px;
   }
 }
