@@ -2,7 +2,9 @@
   <aside class="app-sidebar">
     <ul>
       <li><router-link to="/">首页</router-link></li>
-      <li><router-link to="/task/chat">创建任务</router-link></li>
+      <li>
+        <router-link v-if="auth.hasPermission('012002001')" to="/task/chat">创建任务</router-link>
+      </li>
       <li><router-link to="/task/my">我的任务</router-link></li>
       <li><router-link v-if="auth.hasPermission('012001001')" to="/task">公司任务</router-link></li>
       <li><router-link to="/notify">消息通知</router-link></li>

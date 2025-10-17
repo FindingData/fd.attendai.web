@@ -116,6 +116,7 @@ export const useAuthStore = defineStore('auth', {
       // 提前 120s 处理，避免“刚好过期”抖动
       const lead = 120 * 1000
       const wait = Math.max(this.msLeft - lead, 0)
+      console.log(`计划在 ${this.msLeft / 1000} 后执行过期处理`)
       this._timer = setTimeout(() => {
         // 到点动作：直接清空并跳登录页（或尝试调用你的刷新接口）
         this.logout()

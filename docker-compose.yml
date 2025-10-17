@@ -6,6 +6,8 @@ services:
     container_name: web
     ports:
       - '5267:80' # 宿主 5267 -> 容器 80
+    environment:
+      TZ: Asia/Shanghai
     env_file:
       - .env.prod # 生产（不要入库）
     volumes:
