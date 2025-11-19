@@ -8,6 +8,9 @@
     <el-descriptions :column="2" border :loading="loading">
       <el-descriptions-item label="任务名称">
         {{ task.task_name }}
+        <el-tag v-if="task.has_return_apply_pending" size="small" type="danger" effect="dark">
+          待退回
+        </el-tag>
         <el-tag v-if="task.is_ai_gen" size="middle" @click="viewChat" type="success" class="ml-1"
           >AI</el-tag
         >
@@ -63,21 +66,23 @@
         <el-rate :model-value="task.priority_level || 0" :max="5" disabled show-score />
       </el-descriptions-item>
       <el-descriptions-item label="执行人">{{ task.executor_name }}</el-descriptions-item>
+      <el-descriptions-item label="任务状态">{{ task.status_text }}</el-descriptions-item>
       <el-descriptions-item label="截止时间">
         {{ formatDate(task.due_date) }}
       </el-descriptions-item>
       <el-descriptions-item label="完成时间">
         {{ formatDate(task.completed_date) }}
       </el-descriptions-item>
+
+      <el-descriptions-item label="备注">{{ task.task_remark || '-' }}</el-descriptions-item>
       <el-descriptions-item label="创建人">
         {{ task.created_name }}
       </el-descriptions-item>
-      <el-descriptions-item label="备注">{{ task.task_remark || '-' }}</el-descriptions-item>
     </el-descriptions>
 
     <div class="mt-4 flex-row">
       <el-button type="primary" @click="goBack">返回</el-button>
-      <el-button type="success" v-if="can_complete" @click="replyTask">反馈</el-button>
+      <el-button type="success" v-if="isExecutor" @click="replyTask">反馈</el-button>
       <el-button
         type="success"
         v-if="can_complete"
@@ -85,6 +90,16 @@
         :disabled="task.status_text === '已完成'"
         >完成任务</el-button
       >
+      <el-button
+        type="success"
+        v-if="canApplyReturn"
+        @click="apllyReturnTask"
+        :disabled="task.status_text === '已完成'"
+        >申请退回</el-button
+      >
+      <el-button type="danger" v-if="canReviewReturn" @click="reviewReturnTask">
+        处理退回申请
+      </el-button>
       <el-upload
         class="ml-2"
         :http-request="handleUpload"
@@ -129,7 +144,10 @@
         label="大小"
         prop="file_size"
         :formatter="(row) => formatSize(row.file_size)"
+        width="100px"
       />
+      <el-table-column label="上传时间" prop="created_at" />
+      <el-table-column label="上传人" prop="created_by" width="150px" />
       <el-table-column label="操作">
         <template #default="{ row }">
           <a :href="`${apiBaseUrl}/file/download/${row.file_id}`" target="_blank">下载</a>
@@ -167,11 +185,67 @@
       <el-button @click="summaryDialogVisible = false">关闭</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="applyDialogVisible" title="申请任务退回" width="400px">
+    <el-form :model="applyForm" ref="applyFormRef" label-position="top">
+      <el-form-item
+        label="退回原因"
+        prop="reason"
+        :rules="[{ required: true, message: '请填写退回原因', trigger: 'blur' }]"
+      >
+        <el-input
+          v-model="applyForm.reason"
+          type="textarea"
+          :rows="3"
+          placeholder="请详细说明您申请退回的原因"
+        />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="applyDialogVisible = false">取消</el-button>
+      <el-button type="warning" @click="confirmApplyReturn">提交申请</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 审核退回 -->
+  <el-dialog v-model="reviewDialogVisible" title="处理退回申请" width="500px">
+    <el-form :model="reviewForm" label-width="80px">
+      <el-form-item label="申请原因">
+        <el-input
+          :model-value="task.pending_return_reason || '未提供原因'"
+          type="textarea"
+          :rows="3"
+          disabled
+        />
+      </el-form-item>
+
+      <el-form-item label="处理意见">
+        <el-radio-group v-model="reviewForm.aggree">
+          <el-radio :label="true">同意退回</el-radio>
+          <el-radio :label="false">驳回申请</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input
+          v-model="reviewForm.remark"
+          type="textarea"
+          :rows="3"
+          maxlength="500"
+          show-word-limit
+          placeholder="可填写同意/驳回原因"
+        />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="reviewDialogVisible = false">取消</el-button>
+      <el-button type="primary" @click="confirmReviewReturn">确认处理</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { ref, computed, onMounted, watchEffect } from 'vue'
+import { ref, watch, computed, onMounted, watchEffect } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get, post, upload } from '@/http/request'
 import dayjs from 'dayjs'
@@ -197,12 +271,119 @@ const summaryContent = ref('')
 const taskDescContent = ref('')
 const descDialogVisible = ref(false)
 
+const applyDialogVisible = ref(false)
+const applyFormRef = ref(null)
+const applyForm = ref({
+  reason: '',
+})
+
 const extractingFileId = ref(null)
 const current_user_id = computed(() => auth.user?.user_id)
 
 const can_complete = computed(
   () => task.value && current_user_id.value && task.value.created_by === current_user_id.value
 )
+
+// 检查当前用户是否是执行人
+const isExecutor = computed(() => {
+  return task.value && current_user_id.value === task.value.executor_by
+})
+
+const canApplyReturn = computed(() => {
+  const status_text = task.value.status_text
+  const canStatus = status_text === '进行中'
+  return isExecutor.value && canStatus && !task.value.has_return_apply_pending
+})
+
+// 管理员/创建人能否审批：任务状态必须是 RETURN_REQ (待审批)，且当前用户是创建人 (作为审批人)
+const canReviewReturn = computed(() => {
+  // 假设创建人是审批退回申请的默认角色
+  return task.value.has_return_apply_pending && current_user_id.value === task.value.created_by
+})
+
+const reviewReturnAgree = ref(true)
+const reviewDialogVisible = ref(false)
+const reviewFormRef = ref(null)
+const reviewForm = ref({
+  aggree: true,
+  remark: '',
+})
+
+// 1. 弹出申请对话框
+const apllyReturnTask = () => {
+  applyForm.value.reason = ''
+  applyDialogVisible.value = true
+}
+
+// 1. 弹出审批对话框
+const reviewReturnTask = () => {
+  reviewForm.value.aggree = true
+  reviewForm.value.remark = '同意退回申请'
+  reviewDialogVisible.value = true
+}
+
+// 监听 reviewForm.aggree 的变化并修改备注
+watch(
+  () => reviewForm.value.aggree,
+  (newValue) => {
+    // 确保只在对话框显示时自动填充，避免在初始化时触发不必要的修改
+    if (!reviewDialogVisible.value) {
+      return
+    }
+
+    if (newValue === true) {
+      // 切换到“同意退回”
+      reviewForm.value.remark = '同意退回申请'
+    } else {
+      // 切换到“驳回申请”
+      reviewForm.value.remark = '驳回申请，请重新提交'
+    }
+  }
+)
+
+// 2. 确认审批操作 (批准或拒绝)
+const confirmReviewReturn = async (action) => {
+  if (!task.value?.pending_return_apply_id) {
+    ElMessage.error('未找到待处理的退回申请')
+    return
+  }
+
+  try {
+    await post('/task/return/review', {
+      return_apply_id: task.value.pending_return_apply_id,
+      agree: reviewForm.value.aggree,
+      remark: reviewForm.value.remark,
+      // approver_id 同样由后端从登录上下文取
+    })
+    ElMessage.success(reviewForm.value.aggree ? '已同意退回申请' : '已驳回退回申请')
+    reviewDialogVisible.value = false
+    await fetchTask()
+  } catch (e) {
+    ElMessage.error(e?.message || '处理退回申请失败')
+  }
+}
+
+// 2. 确认提交申请
+const confirmApplyReturn = () => {
+  applyFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        // 调用后端 API 发起退回申请
+        await post(`/task/return/apply`, {
+          task_id: task.value.task_id,
+          reason: applyForm.value.reason,
+          // created_by (申请人) 后端应从 token/session 中获取
+        })
+        ElMessage.success('任务退回申请已提交，等待审批')
+        applyDialogVisible.value = false
+        // 重新拉取任务详情，更新状态到 RETURN_REQ
+        fetchTask()
+      } catch (e) {
+        ElMessage.error(e?.message || '任务退回申请失败')
+      }
+    }
+  })
+}
 
 const getFileType = (fileName) => {
   const parts = fileName.split('.')
@@ -254,6 +435,9 @@ const fetchTask = async () => {
   try {
     const res = await get(`/task/${taskId}`)
     task.value = res
+    if (task.value.status_text === '待开始') {
+      await onStartTask()
+    }
     await fetchAttachments()
   } catch (e) {
     ElMessage.error('获取任务失败' + e.message)
@@ -269,6 +453,12 @@ const fetchAttachments = async () => {
 
 const replyTask = () => {
   router.push({ path: '/task/CommentChat', query: { task_id: task.value.task_id } })
+}
+
+const onStartTask = async () => {
+  const res = await post(`/task/${task.value.task_id}/start`)
+  fetchTask()
+  ElMessage.success('任务已开始')
 }
 
 const completeTask = async () => {
@@ -345,7 +535,7 @@ watchEffect(() => {
 })
 
 onMounted(() => {
-  fetchTask()
+  //fetchTask()
 })
 </script>
 

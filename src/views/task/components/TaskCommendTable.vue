@@ -20,7 +20,7 @@
 
     <el-table :data="comments" v-loading="loading" size="small" border>
       <el-table-column label="反馈内容" prop="comment_content" />
-      <el-table-column label="评论人" prop="created_by_name" width="120" />
+      <el-table-column label="反馈人" prop="created_by_name" width="120" />
       <el-table-column label="时间" width="180">
         <template #default="{ row }">
           {{ formatDate(row.created_at) }}
@@ -47,7 +47,7 @@
         @current-change="onPageChange"
         @size-change="onSizeChange"
         :page-sizes="[5, 10, 20, 50]"
-        small
+        size="small"
       />
     </div>
   </el-card>

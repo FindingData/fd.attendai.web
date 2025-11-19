@@ -38,7 +38,7 @@ const route = useRoute()
 }
 
 .sidebar {
-  width: 220px;
+  width: 140px;
   background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
   color: #e5e7eb;
   border-radius: 14px;
