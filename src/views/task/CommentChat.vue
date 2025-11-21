@@ -1,7 +1,7 @@
 <template>
   <div class="chat-container">
     <!-- 聊天记录 -->
-    <div class="chat-history">
+    <div ref="historyRef" class="chat-history">
       <div v-for="(msg, index) in messages" :key="index" :class="['chat-msg', msg.role]">
         <strong>{{ msg.role === 'user' ? '你' : 'AI' }}：</strong>
         <!-- 仅 assistant 走 markdown 渲染与净化 -->
@@ -12,6 +12,14 @@
 
     <!-- 输入区（带悬浮等待提示） -->
     <div class="chat-input-dock">
+      <el-progress
+        :percentage="uploadProgress"
+        v-if="uploadProgress > 0"
+        :text-inside="true"
+        status="active"
+        style="width: 300px; margin-top: 10px"
+      />
+
       <div class="chat-input-bar">
         <!-- 等待提示：悬浮在输入条上方，不挤布局 -->
         <div class="loading-banner" v-if="loading" aria-live="polite">
@@ -20,6 +28,25 @@
         </div>
 
         <div class="chat-input">
+          <el-upload
+            class="upload-plus"
+            :http-request="handleUpload"
+            :on-success="handleUploadSuccess"
+            :before-upload="beforeUpload"
+            :show-file-list="false"
+            :disabled="uploading || analyzing"
+          >
+            <button
+              type="button"
+              class="btn-upload-plus"
+              :disabled="uploading || analyzing"
+              aria-label="上传附件"
+              title="上传附件"
+            >
+              <span v-if="uploading || analyzing" class="btn-spinner"></span>
+              <span v-else aria-hidden="true">+</span>
+            </button>
+          </el-upload>
           <textarea
             ref="taRef"
             v-model="input"
@@ -43,9 +70,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { callAI } from '@/api/ai-api'
 import { useRoute, useRouter } from 'vue-router'
+import { post, upload } from '@/http/request'
 
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
@@ -70,6 +98,14 @@ const input = ref('')
 const loading = ref(false)
 const messages = ref([])
 
+const uploading = ref(false)
+const analyzing = ref(false)
+
+const currentFileId = ref(null)
+const attachment_id = ref(null)
+const historyRef = ref(null)
+const uploadProgress = ref(0)
+
 const taRef = ref(null)
 const autoResize = () => {
   const el = taRef.value
@@ -86,6 +122,82 @@ const showDetail = () => {
   router.push({ path: '/task/detail', query: { task_id: taskId } })
 }
 
+const handleUploadSuccess = async () => {}
+
+const beforeUpload = (file) => {
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('附件不能大于10MB')
+    return false
+  }
+  return true
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    const el = historyRef.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+
+async function handleUpload({ file, onSuccess, onError }) {
+  // —— 上传阶段 ——
+  try {
+    uploading.value = true
+    messages.value.push({ role: 'assistant', content: `📤 正在上传「${file.name}」...` })
+    scrollToBottom()
+
+    const resp = await upload(
+      '/file/upload',
+      file,
+      {},
+      {
+        onUploadProgress: (e) => {
+          if (e.total) {
+            uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+          }
+        },
+      }
+    )
+
+    onSuccess?.(resp) // 通知 el-upload 成功
+
+    const fid = resp?.file_id || resp
+    if (!fid) throw new Error('上传返回无 file_id')
+    const res = await post(`/task/${taskId}/attachments`, {
+      file_id: fid,
+      task_id: taskId,
+      remark: file.name,
+    })
+    attachment_id.value = res
+    currentFileId.value = fid
+    messages.value.push({
+      role: 'assistant',
+      content: `✅ 上传成功（attachment_id=${attachment_id.value}）`,
+    })
+    scrollToBottom()
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || String(err)
+    messages.value.push({ role: 'assistant', content: `❌ 上传失败：${msg}` })
+    onError?.(err) // 通知 el-upload 失败
+    uploading.value = false
+    scrollToBottom()
+    return
+  } finally {
+    uploading.value = false
+  }
+
+  // —— 审核阶段（触发 LLM → 轮询 → 拉取结果） ——
+  try {
+    analyzing.value = true
+  } catch (err) {
+    const msg = err?.response?.data?.message || err?.message || String(err)
+    messages.value.push({ role: 'assistant', content: `❌ 审核失败：${msg}` })
+  } finally {
+    analyzing.value = false
+    scrollToBottom()
+  }
+}
+
 // 单独提取一个提交方法，负责调用接口并返回结果
 const submitToAI = async (msg, { isCommand = false, suppress = false } = {}) => {
   const content = (msg ?? '').toString().trim()
@@ -100,6 +212,7 @@ const submitToAI = async (msg, { isCommand = false, suppress = false } = {}) => 
     const res = await callAI('/task/ai-comment', {
       user_input: content, // 支持命令式：/clear
       session_key: String(taskId || ''),
+      attachment_id: attachment_id.value,
     })
 
     if (!suppress) {
@@ -189,6 +302,8 @@ onMounted(async () => {
 /* 输入行：保持你原来的 input + 两按钮样式结构 */
 
 .chat-textarea {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   min-height: 44px; /* 初始就更高一些 */
   max-height: 200px;
@@ -202,6 +317,37 @@ onMounted(async () => {
   font-size: 14px;
   background: #fafafa;
   box-sizing: border-box; /* 避免 padding 导致宽度超出 */
+}
+
+.upload-plus {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-upload-plus {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5f5;
+  background: #fff;
+  color: #409eff;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn-upload-plus:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #409eff;
+}
+.btn-upload-plus:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ✅ 悬浮等待提示，不挤压布局 */
