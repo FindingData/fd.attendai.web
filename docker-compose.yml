@@ -9,7 +9,7 @@ services:
     environment:
       TZ: Asia/Shanghai
     env_file:
-      - .env.prod # 生产（不要入库）
+      - .env.staging # 生产（不要入库）
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
     restart: always

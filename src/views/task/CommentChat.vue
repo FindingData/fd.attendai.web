@@ -212,7 +212,7 @@ const submitToAI = async (msg, { isCommand = false, suppress = false } = {}) => 
     const res = await callAI('/task/ai-comment', {
       user_input: content, // 支持命令式：/clear
       session_key: String(taskId || ''),
-      attachment_id: attachment_id.value,
+      attachment_id: String(attachment_id.value || ''),
     })
 
     if (!suppress) {

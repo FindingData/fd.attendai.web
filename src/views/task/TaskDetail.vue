@@ -165,7 +165,7 @@
     </el-table>
 
     <el-divider content-position="left">反馈列表</el-divider>
-    <TaskComment v-if="task.task_id" :task-id="task.task_id" />
+    <TaskComment v-if="task.task_id" :task-id="task.task_id" :key="task.task_id" />
   </el-card>
 
   <el-dialog v-model="descDialogVisible" title="AI摘要" width="600px">
