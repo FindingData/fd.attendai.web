@@ -3,13 +3,13 @@ export default [
     path: '/task',
     name: 'task-list',
     component: () => import('@/views/task/TaskList.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, keepAlive: true },
   },
   {
     path: '/task/my',
     name: 'my-tasks',
     component: () => import('@/views/task/MyTasks.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, keepAlive: false },
   },
   {
     path: '/task/commentchat',

@@ -27,6 +27,11 @@ const { taskTypes, executorList, tagList, loadTaskDict } = useTaskDict()
 
 const { filter } = useTaskFilter()
 
+// 必须设置组件名称，如果您的 Vue 版本支持 defineOptions
+defineOptions({
+  name: 'TaskList', // 👈 必须设置，用于 Keep-Alive 识别
+})
+
 onMounted(() => {
   loadTaskDict()
 })

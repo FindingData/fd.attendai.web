@@ -26,6 +26,9 @@
 
 <script setup>
 import { useAuthStore } from '@/stores/authStore'
+defineOptions({
+  name: 'HomeView', // 👈 必须设置，用于 Keep-Alive 识别
+})
 
 const authStore = useAuthStore()
 const username = authStore.user?.user_name || ''
